@@ -1,0 +1,49 @@
+---
+- name: Install prerequisites
+  apt:
+    name: mongodb
+    state: present
+
+- name: Check installation status
+  stat:
+    path: "{{ leanote_install_dir }}/leanote"
+  register: st
+
+- name: Unarchive Leanote Binaries
+  unarchive:
+    src: https://sourceforge.net/projects/leanote-bin/files/2.1/leanote-linux-amd64-v2.1.bin.tar.gz/download
+    dest: "{{ leanote_install_dir }}"
+    remote_src: yes
+  when: not st.stat.exists
+
+- name: Check database status
+  shell: echo "show dbs" | mongo
+  register: output
+  changed_when: false
+
+- name: Import initial Leanote data
+  shell: mongorestore -h localhost -d leanote --dir {{ leanote_install_dir }}/leanote/mongodb_backup/leanote_install_data
+  when: '"leanote" not in output.stdout'
+
+- name: Verify restore
+  shell: echo "show dbs" | mongo
+  register: output
+  changed_when: false
+  failed_when: '"leanote" not in output.stdout'
+
+- name: Configure Leanote
+  become: yes
+  template:
+    src: app.conf.j2
+    dest: "{{ leanote_install_dir }}/leanote/conf/app.conf"
+  when: not st.stat.exists
+
+- name: Make sure start script is executable
+  file:
+    path: "{{ leanote_start_script }}"
+    mode: "o+x"
+
+- name: Start Leanote
+  command: "{{ leanote_start_script }}"
+  async: 45
+  poll: 0

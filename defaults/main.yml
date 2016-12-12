@@ -1,0 +1,4 @@
+---
+leanote_install_dir: /tmp
+leanote_start_script: "{{ leanote_install_dir }}/leanote/bin/run.sh"
+leanote_port: 9000
